@@ -7,13 +7,14 @@ pipeline {
             steps {
                 script {
                     def scannerHome = tool 'SonarScanner'
+
                     withSonarQubeEnv('SonarQube') {
                         sh """
                             "${scannerHome}/bin/sonar-scanner" \
-                      -Dsonar.projectKey=media-manager \
-                      -Dsonar.projectName="Media Manager" \
-                      -Dsonar.sources=backend,frontend \
-                      -Dsonar.sourceEncoding=UTF-8
+                              -Dsonar.projectKey=media-manager \
+                              -Dsonar.projectName="Media Manager" \
+                              -Dsonar.sources=backend,frontend \
+                              -Dsonar.sourceEncoding=UTF-8
                         """
                     }
                 }
@@ -31,56 +32,110 @@ pipeline {
             }
         }
 
-        
-stage('ECR Login') {
-    steps {
-        sh '''
-            aws ecr get-login-password --region ap-south-1 |
-            docker login \
-              --username AWS \
-              --password-stdin \
-              059310318163.dkr.ecr.ap-south-1.amazonaws.com
-        '''
-    }
-}
+        stage('ECR Login') {
+            steps {
+                sh '''
+                    aws ecr get-login-password --region ap-south-1 |
+                    docker login \
+                      --username AWS \
+                      --password-stdin \
+                      059310318163.dkr.ecr.ap-south-1.amazonaws.com
+                '''
+            }
+        }
 
-stage('Build and Push Backend') {
-    steps {
-        sh '''
-            docker build \
-              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:${BUILD_NUMBER} \
-              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:latest \
-              ./backend
+        stage('Build and Push Backend') {
+            steps {
+                sh '''
+                    IMAGE=059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend
 
-            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:${BUILD_NUMBER}
-            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:latest
-        '''
-    }
-}
+                    docker build \
+                      -t "$IMAGE:${BUILD_NUMBER}" \
+                      -t "$IMAGE:latest" \
+                      ./backend
 
-stage('Build and Push Frontend') {
-    steps {
-        sh '''
-            docker build \
-              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:${BUILD_NUMBER} \
-              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:latest \
-              ./frontend
+                    docker push "$IMAGE:${BUILD_NUMBER}"
+                    docker push "$IMAGE:latest"
+                '''
+            }
+        }
 
-            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:${BUILD_NUMBER}
-            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:latest
-        '''
-    }
-}
+        stage('Build and Push Frontend') {
+            steps {
+                sh '''
+                    IMAGE=059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend
 
+                    docker build \
+                      -t "$IMAGE:${BUILD_NUMBER}" \
+                      -t "$IMAGE:latest" \
+                      ./frontend
 
+                    docker push "$IMAGE:${BUILD_NUMBER}"
+                    docker push "$IMAGE:latest"
+                '''
+            }
+        }
+
+        stage('Deploy to EKS') {
+            steps {
+                sh '''
+                    set -eu
+
+                    echo "Configuring EKS access..."
+
+                    aws eks update-kubeconfig \
+                      --region ap-south-1 \
+                      --name media-manager-eks
+
+                    echo "Preparing image references..."
+
+                    BACKEND_IMAGE="059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:${BUILD_NUMBER}"
+                    FRONTEND_IMAGE="059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:${BUILD_NUMBER}"
+
+                    echo "Deploying backend..."
+
+                    sed "s|BACKEND_IMAGE_PLACEHOLDER|${BACKEND_IMAGE}|g" \
+                      k8s/backend-deployment.yaml |
+                      kubectl apply -f -
+
+                    kubectl apply -f k8s/backend-service.yaml
+
+                    echo "Deploying frontend..."
+
+                    sed "s|FRONTEND_IMAGE_PLACEHOLDER|${FRONTEND_IMAGE}|g" \
+                      k8s/frontend-deployment.yaml |
+                      kubectl apply -f -
+
+                    kubectl apply -f k8s/frontend-service.yaml
+
+                    echo "Waiting for backend rollout..."
+
+                    kubectl rollout status deployment/backend-deployment \
+                      -n media-manager \
+                      --timeout=180s
+
+                    echo "Waiting for frontend rollout..."
+
+                    kubectl rollout status deployment/frontend-deployment \
+                      -n media-manager \
+                      --timeout=180s
+
+                    echo "Final Kubernetes resources:"
+
+                    kubectl get deployments,pods,services \
+                      -n media-manager
+                '''
+            }
+        }
     }
 
     post {
         success {
-            echo 'SonarQube analysis and Trivy scan passed!'
+            echo 'CI/CD SUCCESS: Images pushed and EKS deployment completed!'
         }
+
         failure {
-            echo 'Pipeline failed. Check the stage console output.'
+            echo 'Pipeline failed. Check Console Output for the failing stage.'
         }
     }
 }
