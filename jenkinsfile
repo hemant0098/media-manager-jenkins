@@ -95,18 +95,18 @@ pipeline {
                     echo "Deploying backend..."
 
                     sed "s|BACKEND_IMAGE_PLACEHOLDER|${BACKEND_IMAGE}|g" \
-                      k8s/backend-deployment.yaml |
+                      k8s/backend-deployment.yml |
                       kubectl apply -f -
 
-                    kubectl apply -f k8s/backend-service.yaml
+                    kubectl apply -f k8s/backend-service.yml
 
                     echo "Deploying frontend..."
 
                     sed "s|FRONTEND_IMAGE_PLACEHOLDER|${FRONTEND_IMAGE}|g" \
-                      k8s/frontend-deployment.yaml |
+                      k8s/frontend-deployment.yml |
                       kubectl apply -f -
 
-                    kubectl apply -f k8s/frontend-service.yaml
+                    kubectl apply -f k8s/frontend-service.yml
 
                     echo "Waiting for backend rollout..."
 
