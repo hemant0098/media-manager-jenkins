@@ -30,6 +30,49 @@ pipeline {
                 '''
             }
         }
+
+        
+stage('ECR Login') {
+    steps {
+        sh '''
+            aws ecr get-login-password --region ap-south-1 |
+            docker login \
+              --username AWS \
+              --password-stdin \
+              059310318163.dkr.ecr.ap-south-1.amazonaws.com
+        '''
+    }
+}
+
+stage('Build and Push Backend') {
+    steps {
+        sh '''
+            docker build \
+              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:${BUILD_NUMBER} \
+              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:latest \
+              ./backend
+
+            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:${BUILD_NUMBER}
+            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-backend:latest
+        '''
+    }
+}
+
+stage('Build and Push Frontend') {
+    steps {
+        sh '''
+            docker build \
+              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:${BUILD_NUMBER} \
+              -t 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:latest \
+              ./frontend
+
+            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:${BUILD_NUMBER}
+            docker push 059310318163.dkr.ecr.ap-south-1.amazonaws.com/media-manager-frontend:latest
+        '''
+    }
+}
+
+
     }
 
     post {
