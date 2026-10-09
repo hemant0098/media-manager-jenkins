@@ -9,7 +9,7 @@ pipeline {
                     def scannerHome = tool 'SonarScanner'
                     withSonarQubeEnv('SonarQube') {
                         sh """
-                            "\${scannerHome}/bin/sonar-scanner" \
+                            "${scannerHome}/bin/sonar-scanner" \
                       -Dsonar.projectKey=media-manager \
                       -Dsonar.projectName="Media Manager" \
                       -Dsonar.sources=backend,frontend \
