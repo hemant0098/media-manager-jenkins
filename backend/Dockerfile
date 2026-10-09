@@ -1,13 +1,11 @@
-FROM node:22-alpine
-
+FROM node:18-slim AS build
 WORKDIR /app
-
 COPY package*.json ./
-
 RUN npm install
-
 COPY . .
 
-EXPOSE 5000
-
-CMD ["node", "server.js"]
+FROM gcr.io/distroless/nodejs:18
+WORKDIR /app
+COPY --from=build /app ./
+EXPOSE 3000
+CMD ["server.js"]
