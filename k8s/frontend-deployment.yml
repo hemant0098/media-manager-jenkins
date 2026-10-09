@@ -1,0 +1,21 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  namespace: media-manager
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: media-frontend
+  template:
+    metadata:
+      labels:
+        app: media-frontend
+    spec:
+      containers:
+        - name: media-frontend
+          image: FRONTEND_IMAGE_PLACEHOLDER
+          ports:
+            - containerPort: 80
