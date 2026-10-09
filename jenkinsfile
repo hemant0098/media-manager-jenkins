@@ -94,6 +94,9 @@ pipeline {
 
                     echo "Deploying backend..."
 
+                    kubectl create namespace media-manager \
+                    --dry-run=client -o yaml | kubectl apply -f -
+
                     sed "s|BACKEND_IMAGE_PLACEHOLDER|${BACKEND_IMAGE}|g" \
                       k8s/backend-deployment.yml |
                       kubectl apply -f -
