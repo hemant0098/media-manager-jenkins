@@ -1,0 +1,28 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: media-manager
+  labels:
+    app: media-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: media-backend
+  template:
+    metadata:
+      labels:
+        app: media-backend
+    spec:
+      containers:
+        - name: media-backend
+          image: BACKEND_IMAGE_PLACEHOLDER
+          ports:
+            - containerPort: 5000
+          env:
+            - name: AWS_REGION
+              value: "ap-south-1"
+            - name: S3_BUCKET
+              value: "hemant-media-manager"
